@@ -5,6 +5,7 @@ from os.path import expanduser
 import re
 import subprocess
 from configparser import ConfigParser
+import argparse
 
 # load configuration file
 config = ConfigParser()
@@ -16,8 +17,6 @@ class NoEdidFoundError(Exception):
     def __init__(self):
         print("could not find a configuration matching the current setup")
         sys.exit(1)
-
-
 
 def match_configuration():
     """finds out current setup using xrandr and matches profile in ~/.xrandr-profiles file"""
@@ -58,7 +57,7 @@ def run_xrandr_setup(profile):
             print("an error occurred while newmode: %s" % process.stderr.read().decode('utf-8'))
         process = subprocess.Popen(['xrandr', '--addmode', monitor, resolution], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if process.stderr.read():
-            print("an error occurred while adding mode: %s" % process.stderr.read().decode('utf-8')
+            print("an error occurred while adding mode: %s" % process.stderr.read().decode('utf-8'))
 
     print("choosing outputs: %s" % config[profile]['outputs'])
     for output in config[profile]['outputs'].split(','):
@@ -69,14 +68,31 @@ def run_xrandr_setup(profile):
         if process.stderr.read():
             print("an error occurred while choosing output: %s" % process.stderr.read().decode('utf-8'))
 
+def add_profile(args):
+    """ add a new profile from the given arguments"""
+    print('command should add a profile from the args: %s' % args)
 
 def main():
+    # parse arguments
+    parser = argparse.ArgumentParser(description='Create xrandr profiles for each monitor setup')
+    # TODO: add an argument to create a new profile entry in the config file with the current EDIDS
+    subparsers = parser.add_subparsers(help='subcommands: \nadd-profile', title='add a current setup', dest='subparser')
+    parser_add_profile = subparsers.add_parser('add-profile', help='adds a profile for the current monitor setup')
+    parser_add_profile.add_argument('name', nargs=1, help='insert the name of the new profile')
+    parser_add_profile.add_argument('xrandr', nargs='*', help='xrandr commands e.g. "xrandr --output, LVDS1, --below, DP1"')
+
     current_profile = match_configuration()
 
-    if current_profile is None:
-        raise NoEdidFoundError
+    print(parser.parse_args())
+    args = parser.parse_args()
+    if args.subparser == 'add-profile':
+        add_profile(args)
     else:
-        run_xrandr_setup(current_profile)
+        if current_profile is None:
+            raise NoEdidFoundError
+        else:
+            run_xrandr_setup(current_profile)
 
 if __name__ == '__main__':
+    
     main()
